@@ -20,7 +20,9 @@ in
   };
 
   config = mkIf cfg.enable {
-    users.users.vrfvega.shell = mkIf cfg.default pkgs.zsh;
+    users.users = mkIf cfg.default {
+      vrfvega.shell = pkgs.zsh;
+    };
 
     programs.zsh = {
       enable = true;
