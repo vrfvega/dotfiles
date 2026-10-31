@@ -1,0 +1,19 @@
+name: Check NixOS configuration
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      - name: Evaluate system with generic hardware
+        run: nix eval --raw --no-update-lock-file .#nixosConfigurations.ci.config.system.build.toplevel.drvPath
