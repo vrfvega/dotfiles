@@ -16,8 +16,32 @@ let
     after = [ "network.target" ];
     path = [ ovs ];
     preStart = ''
-      [ -e /var/lib/ovn/${name}.db ] || \
-        ovsdb-tool create /var/lib/ovn/${name}.db ${ovn}/share/ovn/${schema}
+      db=/var/lib/ovn/${name}.db
+      schema=${ovn}/share/ovn/${schema}
+
+      if [ ! -e "$db" ]; then
+        ovsdb-tool create "$db" "$schema"
+      else
+        conversion_needed=$(ovsdb-tool needs-conversion "$db" "$schema")
+        if [ "$conversion_needed" = no ]; then
+          exit 0
+        fi
+
+        current=$(ovsdb-tool db-version "$db")
+        target=$(ovsdb-tool schema-version "$schema")
+
+        # A NixOS rollback must not silently downgrade persistent data.
+        if ovsdb-tool compare-versions "$current" '>' "$target"; then
+          echo "Refusing OVN schema downgrade: $current -> $target" >&2
+          exit 1
+        fi
+
+        install -d -m 0700 /var/lib/ovn/backups
+        cp -p "$db" \
+          "/var/lib/ovn/backups/${name}-$(date +%Y%m%d-%H%M%S-%N).db"
+
+        ovsdb-tool convert "$db" "$schema"
+      fi
     '';
     serviceConfig = {
       StateDirectory = "ovn";
